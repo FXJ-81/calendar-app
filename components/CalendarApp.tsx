@@ -68,6 +68,13 @@ export default function CalendarApp() {
     };
 
     setEvents((prev) => [...prev, newEvent]);
+    closeModal();
+  }
+
+  function closeModal() {
+    setTitle("");
+    setStartStr(toInputValue(new Date()));
+    setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
     setIsOpen(false);
   }
 
@@ -77,101 +84,89 @@ export default function CalendarApp() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
-  <div className="w-full">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold">Simple Calendar</h1>
-            <p className="text-sm text-zinc-400">Add tasks with start/end time. Click an event to delete.</p>
-          </div>
-
-          <button
-            onClick={openModal}
-            className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
-          >
-            New Event
-          </button>
+    <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden">
+      {/* Top bar */}
+      <div className="h-14 px-4 flex items-center justify-between border-b border-zinc-800">
+        <div className="text-lg font-semibold">Calendar</div>
+  
+        <button
+          onClick={openModal}
+          className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
+        >
+          New Event
+        </button>
+      </div>
+  
+      {/* Main */}
+      <div className="h-[calc(100vh-56px)] w-full p-2">
+        <div className="h-full w-full rounded-xl bg-white text-black p-2">
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            defaultView={Views.WEEK}
+            views={[Views.MONTH, Views.WEEK, Views.DAY]}
+            defaultDate={defaultDate}
+            onSelectEvent={(event: CalEvent) => onSelectEvent(event)}
+            popup
+          />
         </div>
-
-        <div className="rounded-2xl bg-zinc-900 p-3 shadow">
-          <div className="h-[75vh] rounded-xl bg-white text-black p-2">
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              defaultView={Views.MONTH}
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
-              defaultDate={defaultDate}
-              onSelectEvent={(event: CalEvent) => onSelectEvent(event)}
-              popup
-            />
-          </div>
-        </div>
-
-        {isOpen && (
+      </div>
+  
+      {/* Modal */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
+          onClick={closeModal}
+        >
           <div
-            className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
-            onClick={() => {
-              setTitle("");
-              setStartStr(toInputValue(new Date()));
-              setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
-              setIsOpen(false);
-            }}
+            className="w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-xl border border-zinc-800"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-xl border border-zinc-800"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-lg font-semibold mb-4">New Event</h2>
-
-              <label className="block text-sm text-zinc-300 mb-1">Title</label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
-                placeholder="e.g., Study, Gym, Meeting"
-              />
-
-              <label className="block text-sm text-zinc-300 mb-1">Start</label>
-              <input
-                type="datetime-local"
-                value={startStr}
-                onChange={(e) => setStartStr(e.target.value)}
-                className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
-              />
-
-              <label className="block text-sm text-zinc-300 mb-1">End</label>
-              <input
-                type="datetime-local"
-                value={endStr}
-                onChange={(e) => setEndStr(e.target.value)}
-                className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-5"
-              />
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setTitle("");
-                    setStartStr(toInputValue(new Date()));
-                    setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
-                    setIsOpen(false);
-                  }}
-                  className="rounded-xl border border-zinc-700 px-4 py-2 hover:bg-zinc-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveEvent}
-                  className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
-                >
-                  Save
-                </button>
-              </div>
+            <h2 className="text-lg font-semibold mb-4">New Event</h2>
+  
+            <label className="block text-sm text-zinc-300 mb-1">Title</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
+              placeholder="e.g., Study, Gym, Meeting"
+            />
+  
+            <label className="block text-sm text-zinc-300 mb-1">Start</label>
+            <input
+              type="datetime-local"
+              value={startStr}
+              onChange={(e) => setStartStr(e.target.value)}
+              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
+            />
+  
+            <label className="block text-sm text-zinc-300 mb-1">End</label>
+            <input
+              type="datetime-local"
+              value={endStr}
+              onChange={(e) => setEndStr(e.target.value)}
+              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-5"
+            />
+  
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeModal}
+                className="rounded-xl border border-zinc-700 px-4 py-2 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEvent}
+                className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
+              >
+                Save
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
