@@ -1,204 +1,274 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, dateFnsLocalizer, Views, type Event as RBCEvent } from "react-big-calendar";
-import "react-big-calendar/lib/css/react-big-calendar.css";
+import { supabase } from "@/lib/supabaseClient";
 
-import { format } from "date-fns/format";
-import { parse } from "date-fns/parse";
-import { startOfWeek } from "date-fns/startOfWeek";
-import { getDay } from "date-fns/getDay";
+// If you're using react-big-calendar:
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
 
 const locales = { "en-US": enUS };
-
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: (date: Date) => startOfWeek(date, { weekStartsOn: 0 }),
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 0 }),
   getDay,
   locales,
 });
 
-type CalEvent = RBCEvent & {
+type DbEvent = {
+  id: string;
+  user_id: string;
+  title: string;
+  start_time: string; // ISO
+  end_time: string;   // ISO
+};
+
+type CalEvent = {
   id: string;
   title: string;
   start: Date;
   end: Date;
 };
 
-function toInputValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export default function CalendarApp() {
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftStart, setDraftStart] = useState<Date | null>(null);
+  const [draftEnd, setDraftEnd] = useState<Date | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Load saved events on first load
+  // Load session + subscribe to auth changes
   useEffect(() => {
-    const raw = localStorage.getItem("calendar_events_v1");
-    if (!raw) return;
+    let mounted = true;
 
-    try {
-      const parsed = JSON.parse(raw) as Array<{
-        id: string;
-        title: string;
-        start: string;
-        end: string;
-      }>;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setUserId(data.session?.user.id ?? null);
+    });
 
-      setEvents(
-        parsed.map((e) => ({
-          id: e.id,
-          title: e.title,
-          start: new Date(e.start),
-          end: new Date(e.end),
-          allDay: false,
-        }))
-      );
-    } catch {
-      // ignore bad saved data
-    }
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user.id ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  // Save events whenever they change
   useEffect(() => {
-    const toSave = events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      start: e.start.toISOString(),
-      end: e.end.toISOString(),
-    }));
-    localStorage.setItem("calendar_events_v1", JSON.stringify(toSave));
-  }, [events]);
+    async function fetchEvents() {
+      const { data: userData } = await supabase.auth.getUser();
 
-  const [isOpen, setIsOpen] = useState(false);
+      const uid = userData.user?.id;
+      if (!uid) {
+        setEvents([]);
+        return;
+      }
 
-  const now = new Date();
-  const [title, setTitle] = useState("");
-  const [startStr, setStartStr] = useState(toInputValue(now));
-  const [endStr, setEndStr] = useState(toInputValue(new Date(now.getTime() + 60 * 60 * 1000)));
+      const { data, error } = await supabase
+        .from("events")
+        .select("id,title,start_time,end_time")
+        .eq("user_id", uid)
+        .order("start_time", { ascending: true });
 
-  const defaultDate = useMemo(() => new Date(), []);
+      if (error) {
+        console.error(error);
+        return;
+      }
 
-  function openModal() {
-    const n = new Date();
-    setTitle("");
-    setStartStr(toInputValue(n));
-    setEndStr(toInputValue(new Date(n.getTime() + 60 * 60 * 1000)));
-    setIsOpen(true);
+      setEvents(
+        (data ?? []).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          start: new Date(e.start_time),
+          end: new Date(e.end_time),
+        }))
+      );
+    }
+
+    fetchEvents();
+  }, []);
+
+  async function addEvent(title: string, start: Date, end: Date) {
+    if (!userId) {
+      alert("Please sign in first.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("events")
+      .insert([
+        {
+          user_id: userId,
+          title,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+        },
+      ])
+      .select("id,user_id,title,start_time,end_time")
+      .single();
+
+    if (error) {
+      console.error(error);
+      alert(error.message);
+      return;
+    }
+
+    const e = data as DbEvent;
+    setEvents((prev) => [
+      ...prev,
+      { id: e.id, title: e.title, start: new Date(e.start_time), end: new Date(e.end_time) },
+    ]);
   }
 
-  function saveEvent() {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+  async function deleteEvent(eventId: string) {
+    if (!userId) return;
 
-    if (!title.trim()) return alert("Title is required.");
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return alert("Invalid date/time.");
-    if (end <= start) return alert("End time must be after start time.");
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
 
-    const newEvent: CalEvent = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      start,
-      end,
-      allDay: false,
-    };
+    if (error) {
+      console.error(error);
+      alert(error.message);
+      return;
+    }
 
-    setEvents((prev) => [...prev, newEvent]);
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+  }
+
+  function onSelectSlot(slotInfo: { start: Date; end: Date }) {
+    setEditingId(null);
+    setDraftTitle("");
+    setDraftStart(slotInfo.start);
+    setDraftEnd(slotInfo.end);
+    setShowModal(true);
+  }
+
+  function onSelectEvent(event: { id: string; title: string; start: Date; end: Date }) {
+    setEditingId(event.id);
+    setDraftTitle(event.title);
+    setDraftStart(event.start);
+    setDraftEnd(event.end);
+    setShowModal(true);
+  }
+
+  async function saveDraft() {
+    if (!draftTitle || !draftStart || !draftEnd) return;
+
+    if (editingId) {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          title: draftTitle,
+          start_time: draftStart.toISOString(),
+          end_time: draftEnd.toISOString(),
+        })
+        .eq("id", editingId);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === editingId
+            ? { ...e, title: draftTitle, start: draftStart, end: draftEnd }
+            : e
+        )
+      );
+      closeModal();
+      return;
+    }
+
+    await addEvent(draftTitle, draftStart, draftEnd);
     closeModal();
   }
 
   function closeModal() {
-    setTitle("");
-    setStartStr(toInputValue(new Date()));
-    setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
-    setIsOpen(false);
+    setShowModal(false);
+    setEditingId(null);
   }
 
-  function onSelectEvent(ev: CalEvent) {
-    if (!confirm(`Delete "${ev.title}"?`)) return;
-    setEvents((prev) => prev.filter((e) => e.id !== ev.id));
-  }
+  const canUseCalendar = !!userId;
 
   return (
-    <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden">
-      {/* Top bar */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-zinc-800">
+    <div className="w-full">
+      {!canUseCalendar && (
+        <div className="mb-3 text-sm text-zinc-300">
+          Sign in to create/save events. (You can still view the empty calendar.)
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-sm text-zinc-300">Loading events...</div>
+      ) : null}
+
+      <div className="mb-3 flex items-center justify-between">
         <div className="text-lg font-semibold">Calendar</div>
-  
+
         <button
-          onClick={openModal}
-          className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
+          className="px-3 py-2 rounded bg-zinc-100 text-zinc-900"
+          onClick={() => {
+            const now = new Date();
+            const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
+            setEditingId(null);
+            setDraftTitle("");
+            setDraftStart(now);
+            setDraftEnd(inOneHour);
+            setShowModal(true);
+          }}
         >
           New Event
         </button>
       </div>
-  
-      {/* Main */}
-      <div className="h-[calc(100vh-56px)] w-full p-2">
-        <div className="h-full w-full rounded-xl bg-white text-black p-2">
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            defaultView={Views.WEEK}
-            views={[Views.MONTH, Views.WEEK, Views.DAY]}
-            defaultDate={defaultDate}
-            onSelectEvent={(event: CalEvent) => onSelectEvent(event)}
-            popup
-          />
-        </div>
-      </div>
-  
-      {/* Modal */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
-          onClick={closeModal}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-xl border border-zinc-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold mb-4">New Event</h2>
-  
-            <label className="block text-sm text-zinc-300 mb-1">Title</label>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="w-full max-w-md rounded-xl bg-zinc-950 border border-zinc-800 p-4">
+            <div className="text-lg font-semibold mb-3">{editingId ? "Edit Event" : "New Event"}</div>
+
+            <label className="text-sm text-zinc-300">Title</label>
             <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
-              placeholder="e.g., Study, Gym, Meeting"
+              className="mt-1 w-full px-3 py-2 rounded bg-zinc-900 border border-zinc-700"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="e.g. Study session"
+              autoFocus
             />
-  
-            <label className="block text-sm text-zinc-300 mb-1">Start</label>
-            <input
-              type="datetime-local"
-              value={startStr}
-              onChange={(e) => setStartStr(e.target.value)}
-              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-4"
-            />
-  
-            <label className="block text-sm text-zinc-300 mb-1">End</label>
-            <input
-              type="datetime-local"
-              value={endStr}
-              onChange={(e) => setEndStr(e.target.value)}
-              className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 mb-5"
-            />
-  
-            <div className="flex justify-end gap-2">
+
+            <div className="mt-3 text-sm text-zinc-300">
+              {draftStart?.toLocaleString()} → {draftEnd?.toLocaleString()}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              {editingId && (
+                <button
+                  className="px-3 py-2 rounded border border-zinc-700 text-zinc-100"
+                  onClick={async () => {
+                    await deleteEvent(editingId);
+                    closeModal();
+                  }}
+                >
+                  Delete
+                </button>
+              )}
               <button
+                className="px-3 py-2 rounded border border-zinc-700"
                 onClick={closeModal}
-                className="rounded-xl border border-zinc-700 px-4 py-2 hover:bg-zinc-800"
               >
                 Cancel
               </button>
               <button
-                onClick={saveEvent}
-                className="rounded-xl bg-zinc-100 text-zinc-900 px-4 py-2 font-medium hover:opacity-90"
+                className="px-3 py-2 rounded bg-zinc-100 text-zinc-900 disabled:opacity-50"
+                onClick={saveDraft}
+                disabled={!draftTitle}
               >
                 Save
               </button>
@@ -206,6 +276,18 @@ export default function CalendarApp() {
           </div>
         </div>
       )}
+
+      <div className="h-[75vh] w-full">
+        <Calendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          selectable
+          onSelectSlot={onSelectSlot}
+          onSelectEvent={onSelectEvent}
+        />
+      </div>
     </div>
   );
 }
