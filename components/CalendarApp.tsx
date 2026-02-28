@@ -15,7 +15,7 @@ const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 0 }),
+  startOfWeek: (date: Date) => startOfWeek(date, { weekStartsOn: 0 }),
   getDay,
   locales,
 });
@@ -78,7 +78,7 @@ export default function CalendarApp() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
-      <div className="mx-auto max-w-5xl">
+  <div className="w-full">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-semibold">Simple Calendar</h1>
@@ -110,8 +110,19 @@ export default function CalendarApp() {
         </div>
 
         {isOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-xl border border-zinc-800">
+          <div
+            className="fixed inset-0 bg-black/70 flex items-center justify-center p-4"
+            onClick={() => {
+              setTitle("");
+              setStartStr(toInputValue(new Date()));
+              setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
+              setIsOpen(false);
+            }}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-xl border border-zinc-800"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-lg font-semibold mb-4">New Event</h2>
 
               <label className="block text-sm text-zinc-300 mb-1">Title</label>
@@ -140,7 +151,12 @@ export default function CalendarApp() {
 
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setTitle("");
+                    setStartStr(toInputValue(new Date()));
+                    setEndStr(toInputValue(new Date(Date.now() + 60 * 60 * 1000)));
+                    setIsOpen(false);
+                  }}
                   className="rounded-xl border border-zinc-700 px-4 py-2 hover:bg-zinc-800"
                 >
                   Cancel
