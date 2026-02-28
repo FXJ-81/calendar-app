@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views, type Event as RBCEvent } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
@@ -34,6 +34,45 @@ function toInputValue(d: Date) {
 
 export default function CalendarApp() {
   const [events, setEvents] = useState<CalEvent[]>([]);
+
+  // Load saved events on first load
+  useEffect(() => {
+    const raw = localStorage.getItem("calendar_events_v1");
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as Array<{
+        id: string;
+        title: string;
+        start: string;
+        end: string;
+      }>;
+
+      setEvents(
+        parsed.map((e) => ({
+          id: e.id,
+          title: e.title,
+          start: new Date(e.start),
+          end: new Date(e.end),
+          allDay: false,
+        }))
+      );
+    } catch {
+      // ignore bad saved data
+    }
+  }, []);
+
+  // Save events whenever they change
+  useEffect(() => {
+    const toSave = events.map((e) => ({
+      id: e.id,
+      title: e.title,
+      start: e.start.toISOString(),
+      end: e.end.toISOString(),
+    }));
+    localStorage.setItem("calendar_events_v1", JSON.stringify(toSave));
+  }, [events]);
+
   const [isOpen, setIsOpen] = useState(false);
 
   const now = new Date();
