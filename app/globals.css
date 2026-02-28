@@ -27,3 +27,7 @@ body {
 .rbc-calendar {
   height: 100% !important;
 }
+
+.rbc-current-time-indicator {
+  display: none;
+}
