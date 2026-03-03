@@ -44,9 +44,11 @@ export default function AuthPanel() {
     <div className="flex flex-wrap gap-2 items-center">
       {sessionEmail ? (
         <>
-          <div className="text-sm text-zinc-300">Signed in as {sessionEmail}</div>
+          <div className="text-sm text-zinc-800 dark:text-zinc-300">
+            Signed in as {sessionEmail}
+          </div>
           <button
-            className="px-3 py-2 rounded border border-zinc-700"
+            className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700"
             onClick={signOut}
           >
             Sign out
@@ -55,26 +57,26 @@ export default function AuthPanel() {
       ) : (
         <>
           <input
-            className="px-3 py-2 rounded bg-zinc-900 border border-zinc-700"
+            className="px-3 py-2 rounded bg-white text-zinc-900 border border-zinc-300 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
             placeholder="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
           <input
-            className="px-3 py-2 rounded bg-zinc-900 border border-zinc-700"
+            className="px-3 py-2 rounded bg-white text-zinc-900 border border-zinc-300 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
             placeholder="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
           <button
-            className="px-3 py-2 rounded bg-zinc-100 text-zinc-900"
+            className="px-3 py-2 rounded bg-zinc-900 text-zinc-100 border border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
             onClick={signIn}
           >
             Sign in
           </button>
           <button
-            className="px-3 py-2 rounded border border-zinc-700"
+            className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700"
             onClick={signUp}
           >
             Sign up

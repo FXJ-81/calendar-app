@@ -1,0 +1,51 @@
+/* Override react-day-picker: dark shade for circle + arrows. Scoped to .sidebar-rdp for higher specificity. */
+
+.sidebar-rdp .rdp-root {
+  --rdp-accent-color: #f4f4f5 !important;
+  --rdp-accent-background-color: #27272a !important;
+  --rdp-selected-border: 2px solid #27272a !important;
+  --rdp-today-color: #27272a !important;
+}
+
+.sidebar-rdp .rdp-chevron {
+  fill: #27272a !important;
+}
+
+.sidebar-rdp .rdp-day_button.rdp-selected,
+.sidebar-rdp .rdp-day_button.rdp-selected:hover {
+  background-color: #27272a !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+.sidebar-rdp .rdp-today:not(.rdp-outside) .rdp-day_button {
+  color: #27272a !important;
+}
+
+/* Dark */
+html.dark .sidebar-rdp .rdp-root {
+  --rdp-accent-color: #f4f4f5 !important;
+  --rdp-accent-background-color: #3f3f46 !important;
+  --rdp-selected-border: 2px solid #71717a !important;
+  --rdp-today-color: #f4f4f5 !important;
+}
+
+html.dark .sidebar-rdp .rdp-chevron {
+  fill: #a1a1aa !important;
+}
+
+html.dark .sidebar-rdp .rdp-day_button.rdp-selected,
+html.dark .sidebar-rdp .rdp-day_button.rdp-selected:hover {
+  background-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+  border-color: #71717a !important;
+}
+
+html.dark .sidebar-rdp .rdp-today:not(.rdp-outside) .rdp-day_button {
+  color: #f4f4f5 !important;
+}
+
+html.dark .sidebar-rdp .rdp-today.rdp-selected .rdp-day_button {
+  background-color: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
