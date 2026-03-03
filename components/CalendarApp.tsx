@@ -149,10 +149,7 @@ export default function CalendarApp({
   }, []);
 
   async function addEvent(title: string, start: Date, end: Date, color?: string) {
-    if (!userId) {
-      alert("Please sign in first.");
-      return;
-    }
+    if (!userId) return;
 
     const { data, error } = await supabase
       .from("events")
@@ -169,8 +166,7 @@ export default function CalendarApp({
       .single();
 
     if (error) {
-      console.error(error);
-      alert(error.message);
+      console.error(error.message);
       return;
     }
 
@@ -193,8 +189,7 @@ export default function CalendarApp({
     const { error } = await supabase.from("events").delete().eq("id", eventId);
 
     if (error) {
-      console.error(error);
-      alert(error.message);
+      console.error(error.message);
       return;
     }
 
@@ -234,7 +229,7 @@ export default function CalendarApp({
         .eq("id", editingId);
 
       if (error) {
-        alert(error.message);
+        console.error(error.message);
         return;
       }
 
@@ -427,8 +422,10 @@ export default function CalendarApp({
               .update({ start_time: start.toISOString(), end_time: end.toISOString() })
               .eq("id", event.id);
 
-            if (error) return alert(error.message);
-
+            if (error) {
+              console.error(error.message);
+              return;
+            }
             setEvents((prev) =>
               prev.map((e) => (e.id === event.id ? { ...e, start, end } : e))
             );
@@ -439,7 +436,10 @@ export default function CalendarApp({
               .update({ start_time: start.toISOString(), end_time: end.toISOString() })
               .eq("id", event.id);
 
-            if (error) return alert(error.message);
+            if (error) {
+              console.error(error.message);
+              return;
+            }
 
             setEvents((prev) =>
               prev.map((e) => (e.id === event.id ? { ...e, start, end } : e))

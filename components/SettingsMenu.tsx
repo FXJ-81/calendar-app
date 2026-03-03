@@ -41,6 +41,8 @@ export default function SettingsMenu() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
@@ -82,26 +84,39 @@ export default function SettingsMenu() {
   }
 
   async function signInGoogle() {
+    setAuthError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
-    if (error) alert(error.message);
+    if (error) setAuthError(error.message);
   }
 
   async function signInEmail() {
+    setLoading(true);
+    setAuthError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
-    else {
-      setEmailOpen(false);
-      setOpen(false);
+    setLoading(false);
+    if (error) {
+      setAuthError(error.message);
+      return;
     }
+    setEmailOpen(false);
+    setOpen(false);
   }
 
   async function signUpEmail() {
+    setLoading(true);
+    setAuthError(null);
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    else alert("Check your email to confirm (if enabled).");
+    setLoading(false);
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+    setAuthError(null);
+    setEmailOpen(false);
+    setOpen(false);
   }
 
   return (
@@ -170,6 +185,7 @@ export default function SettingsMenu() {
                   onClick={() => {
                     setEmailOpen(true);
                     setMode("signin");
+                    setAuthError(null);
                   }}
                 >
                   Email
@@ -196,7 +212,7 @@ export default function SettingsMenu() {
                   className={`px-3 py-1 rounded border ${
                     mode === "signin" ? "border-zinc-400 dark:border-zinc-600" : "border-transparent"
                   }`}
-                  onClick={() => setMode("signin")}
+                  onClick={() => { setMode("signin"); setAuthError(null); }}
                 >
                   Sign in
                 </button>
@@ -204,7 +220,7 @@ export default function SettingsMenu() {
                   className={`px-3 py-1 rounded border ${
                     mode === "signup" ? "border-zinc-400 dark:border-zinc-600" : "border-transparent"
                   }`}
-                  onClick={() => setMode("signup")}
+                  onClick={() => { setMode("signup"); setAuthError(null); }}
                 >
                   Sign up
                 </button>
@@ -226,21 +242,29 @@ export default function SettingsMenu() {
                 onChange={(e) => setPassword(e.target.value)}
               />
 
+              {authError && (
+                <div className="mt-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+                  {authError}
+                </div>
+              )}
+
               {mode === "signin" ? (
                 <button
                   className="w-full mt-3 px-3 py-2 rounded bg-zinc-900 text-zinc-100
-                             dark:bg-zinc-100 dark:text-zinc-900"
+                             dark:bg-zinc-100 dark:text-zinc-900 disabled:opacity-50"
                   onClick={signInEmail}
+                  disabled={loading}
                 >
-                  Sign in
+                  {loading ? "Signing in…" : "Sign in"}
                 </button>
               ) : (
                 <button
                   className="w-full mt-3 px-3 py-2 rounded bg-zinc-900 text-zinc-100
-                             dark:bg-zinc-100 dark:text-zinc-900"
+                             dark:bg-zinc-100 dark:text-zinc-900 disabled:opacity-50"
                   onClick={signUpEmail}
+                  disabled={loading}
                 >
-                  Sign up
+                  {loading ? "Signing up…" : "Sign up"}
                 </button>
               )}
             </div>
