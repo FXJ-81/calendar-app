@@ -43,6 +43,20 @@ body {
   height: 100%;
 }
 
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch-friendly: prevent double-tap zoom on buttons (optional; keep if you want) */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  select {
+    touch-action: manipulation;
+  }
+}
+
+
 /* LIGHT */
 html.light body {
   background: #ffffff;

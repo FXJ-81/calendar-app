@@ -266,7 +266,8 @@ export default function CalendarApp({
 
       <div className="mb-3 flex items-center justify-end">
         <button
-          className="px-3 py-2 rounded bg-zinc-100 text-zinc-900"
+          type="button"
+          className="px-4 py-3 sm:py-2 rounded bg-zinc-100 text-zinc-900 touch-manipulation min-h-[44px] dark:bg-zinc-800 dark:text-zinc-100"
           onClick={() => {
             const now = new Date();
             const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
@@ -283,15 +284,15 @@ export default function CalendarApp({
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="w-full max-w-md rounded-xl bg-white border border-zinc-200 p-4 dark:bg-zinc-950 dark:border-zinc-800">
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl bg-white border border-zinc-200 p-4 pb-[env(safe-area-inset-bottom)] dark:bg-zinc-950 dark:border-zinc-800">
             <div className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
               {editingId ? "Edit Event" : "New Event"}
             </div>
 
             <label className="text-sm text-zinc-700 dark:text-zinc-300">Title</label>
             <input
-              className="mt-1 w-full px-3 py-2 rounded bg-white text-zinc-900 border border-zinc-300 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
+              className="mt-1 w-full px-3 py-3 sm:py-2 rounded bg-white text-zinc-900 border border-zinc-300 text-base dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
               placeholder="e.g. Study session"
@@ -341,10 +342,11 @@ export default function CalendarApp({
               )}
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               {editingId && (
                 <button
-                  className="px-3 py-2 rounded border border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
+                  type="button"
+                  className="px-4 py-3 sm:py-2 rounded border border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100 touch-manipulation min-h-[44px]"
                   onClick={async () => {
                     await deleteEvent(editingId);
                     closeModal();
@@ -354,13 +356,15 @@ export default function CalendarApp({
                 </button>
               )}
               <button
-                className="px-3 py-2 rounded border border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
+                type="button"
+                className="px-4 py-3 sm:py-2 rounded border border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-100 touch-manipulation min-h-[44px]"
                 onClick={closeModal}
               >
                 Cancel
               </button>
               <button
-                className="px-3 py-2 rounded bg-zinc-800 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                type="button"
+                className="px-4 py-3 sm:py-2 rounded bg-zinc-800 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 touch-manipulation min-h-[44px]"
                 onClick={saveDraft}
                 disabled={!draftTitle}
               >
@@ -371,7 +375,7 @@ export default function CalendarApp({
         </div>
       )}
 
-      <div className="h-[calc(100vh-70px)] w-full">
+      <div className="min-h-[50vh] h-[calc(100vh-100px)] sm:h-[calc(100vh-70px)] w-full">
         <DnDCalendar
           localizer={localizer}
           events={events}

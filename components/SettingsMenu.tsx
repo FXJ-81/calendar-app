@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import AuthModal from "@/components/AuthModal";
 
 function GearIcon() {
   return (
@@ -41,6 +42,7 @@ export default function SettingsMenu() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -106,6 +108,10 @@ export default function SettingsMenu() {
   }
 
   async function signUpEmail() {
+    if (password !== confirmPassword) {
+      setAuthError("Passwords do not match.");
+      return;
+    }
     setLoading(true);
     setAuthError(null);
     const { error } = await supabase.auth.signUp({ email, password });
@@ -119,6 +125,11 @@ export default function SettingsMenu() {
     setOpen(false);
   }
 
+  function handleAuthSubmit() {
+    if (mode === "signin") signInEmail();
+    else signUpEmail();
+  }
+
   return (
     <div className="relative" ref={boxRef}>
       <button
@@ -126,14 +137,14 @@ export default function SettingsMenu() {
           setOpen((v) => !v);
           if (open) setEmailOpen(false);
         }}
-        className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-800
-                   flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900"
+        className="w-10 h-10 min-h-[44px] min-w-[44px] rounded-full border border-zinc-200 dark:border-zinc-800
+                   flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 touch-manipulation"
         title="Settings"
       >
         <GearIcon />
       </button>
 
-      {open && (
+      {!emailOpen && open && (
         <>
           {/* MAIN MENU */}
           <div className="absolute right-0 mt-2 w-72 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg p-2 z-50">
@@ -184,6 +195,7 @@ export default function SettingsMenu() {
                   className="w-full text-left px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900"
                   onClick={() => {
                     setEmailOpen(true);
+                    setOpen(false);
                     setMode("signin");
                     setAuthError(null);
                   }}
@@ -194,83 +206,28 @@ export default function SettingsMenu() {
             )}
           </div>
 
-          {/* EMAIL POPUP (SECOND PANEL) */}
-          {emailOpen && !userEmail && (
-            <div className="absolute right-0 mt-2 translate-x-[-300px] w-80 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg p-3 z-50">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold">Email</div>
-                <button
-                  className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                  onClick={() => setEmailOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="mt-3 flex gap-2 text-sm">
-                <button
-                  className={`px-3 py-1 rounded border ${
-                    mode === "signin" ? "border-zinc-400 dark:border-zinc-600" : "border-transparent"
-                  }`}
-                  onClick={() => { setMode("signin"); setAuthError(null); }}
-                >
-                  Sign in
-                </button>
-                <button
-                  className={`px-3 py-1 rounded border ${
-                    mode === "signup" ? "border-zinc-400 dark:border-zinc-600" : "border-transparent"
-                  }`}
-                  onClick={() => { setMode("signup"); setAuthError(null); }}
-                >
-                  Sign up
-                </button>
-              </div>
-
-              <input
-                className="w-full mt-3 px-3 py-2 rounded bg-white text-zinc-900 border border-zinc-300
-                           dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
-                placeholder="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <input
-                className="w-full mt-2 px-3 py-2 rounded bg-white text-zinc-900 border border-zinc-300
-                           dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
-                placeholder="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-
-              {authError && (
-                <div className="mt-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
-                  {authError}
-                </div>
-              )}
-
-              {mode === "signin" ? (
-                <button
-                  className="w-full mt-3 px-3 py-2 rounded bg-zinc-900 text-zinc-100
-                             dark:bg-zinc-100 dark:text-zinc-900 disabled:opacity-50"
-                  onClick={signInEmail}
-                  disabled={loading}
-                >
-                  {loading ? "Signing in…" : "Sign in"}
-                </button>
-              ) : (
-                <button
-                  className="w-full mt-3 px-3 py-2 rounded bg-zinc-900 text-zinc-100
-                             dark:bg-zinc-100 dark:text-zinc-900 disabled:opacity-50"
-                  onClick={signUpEmail}
-                  disabled={loading}
-                >
-                  {loading ? "Signing up…" : "Sign up"}
-                </button>
-              )}
-            </div>
-          )}
         </>
       )}
+
+      <AuthModal
+        open={emailOpen && !userEmail}
+        onClose={() => {
+          setEmailOpen(false);
+          setAuthError(null);
+          setConfirmPassword("");
+        }}
+        mode={mode}
+        setMode={setMode}
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        authError={authError}
+        loading={loading}
+        onSubmit={handleAuthSubmit}
+      />
     </div>
   );
 }
