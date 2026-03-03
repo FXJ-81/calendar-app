@@ -52,15 +52,12 @@ export default function AuthModal({
         aria-label="Close"
       />
 
-      <div className="absolute inset-0 flex items-end sm:items-center sm:justify-center p-0 sm:p-6">
+      <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
           className="
-            relative w-full
-            bg-[#0b0b0b] border border-white/10 shadow-2xl
-            rounded-t-2xl sm:rounded-2xl
-            max-h-[92dvh] sm:max-h-[85vh]
-            overflow-hidden
-            sm:w-[420px]
+            relative w-full max-w-md
+            rounded-2xl border border-white/10 bg-[#0b0b0b] shadow-2xl
+            max-h-[85dvh] overflow-hidden
           "
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
@@ -184,7 +181,7 @@ export default function AuthModal({
               </button>
             </form>
 
-            <div className="h-4 sm:h-0" />
+            <div className="h-4" />
           </div>
         </div>
       </div>
