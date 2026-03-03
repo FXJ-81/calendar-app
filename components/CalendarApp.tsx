@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
@@ -48,6 +48,12 @@ const EVENT_COLORS = [
   { id: "purple", name: "Purple", hex: "#7c3aed" },
   { id: "pink", name: "Pink", hex: "#db2777" },
   { id: "slate", name: "Slate", hex: "#475569" },
+  { id: "yellow", name: "Yellow", hex: "#eab308" },
+  { id: "lime", name: "Lime", hex: "#84cc16" },
+  { id: "cyan", name: "Cyan", hex: "#06b6d4" },
+  { id: "fuchsia", name: "Fuchsia", hex: "#c026d3" },
+  { id: "rose", name: "Rose", hex: "#e11d48" },
+  { id: "stone", name: "Stone", hex: "#78716c" },
 ] as const;
 
 const DEFAULT_COLOR = "blue";
@@ -65,12 +71,15 @@ export default function CalendarApp({
 }) {
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStart, setDraftStart] = useState<Date | null>(null);
   const [draftEnd, setDraftEnd] = useState<Date | null>(null);
   const [draftColor, setDraftColor] = useState<string>(DEFAULT_COLOR);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Load session + subscribe to auth changes
@@ -80,6 +89,7 @@ export default function CalendarApp({
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setUserId(data.session?.user.id ?? null);
+      setAuthChecked(true);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -91,6 +101,17 @@ export default function CalendarApp({
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!colorPickerOpen) return;
+    function onDown(e: MouseEvent) {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setColorPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [colorPickerOpen]);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -234,6 +255,7 @@ export default function CalendarApp({
 
   function closeModal() {
     setShowModal(false);
+    setColorPickerOpen(false);
     setEditingId(null);
   }
 
@@ -241,9 +263,9 @@ export default function CalendarApp({
 
   return (
     <div className="w-full">
-      {!canUseCalendar && (
-        <div className="mb-3 text-sm text-zinc-800 dark:text-zinc-300">
-          Sign in to create/save events. (You can still view the empty calendar.)
+      {authChecked && !canUseCalendar && (
+        <div className="mb-3 text-2xl font-bold text-zinc-800 dark:text-zinc-300">
+          Sign in to create/save events.
         </div>
       )}
 
@@ -286,27 +308,42 @@ export default function CalendarApp({
             </div>
 
             <label className="mt-3 block text-sm text-zinc-700 dark:text-zinc-300">Color</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setDraftColor(c.id)}
-                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-shadow ${
-                    draftColor === c.id
-                      ? "border-zinc-900 dark:border-white ring-2 ring-offset-2 ring-zinc-500 dark:ring-zinc-400"
-                      : "border-transparent hover:ring-2 hover:ring-offset-2 hover:ring-zinc-300 dark:hover:ring-zinc-600"
-                  }`}
-                  style={{ backgroundColor: c.hex }}
-                  title={c.name}
-                >
-                  {draftColor === c.id && (
-                    <svg className="w-5 h-5 text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+            <div className="mt-2 relative" ref={colorPickerRef}>
+              <button
+                type="button"
+                onClick={() => setColorPickerOpen((v) => !v)}
+                className="w-full px-3 py-2 rounded border border-zinc-300 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 flex items-center gap-2"
+              >
+                <span
+                  className="w-4 h-4 rounded-full shrink-0 border border-zinc-300 dark:border-zinc-600"
+                  style={{ backgroundColor: EVENT_COLORS.find((c) => c.id === draftColor)?.hex ?? EVENT_COLORS[0].hex }}
+                />
+                <span className="flex-1 text-left">
+                  {EVENT_COLORS.find((c) => c.id === draftColor)?.name ?? draftColor}
+                </span>
+                <span className="text-zinc-500">▾</span>
+              </button>
+              {colorPickerOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 py-1 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg z-10 max-h-56 overflow-auto">
+                  {EVENT_COLORS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setDraftColor(c.id);
+                        setColorPickerOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 ${draftColor === c.id ? "bg-zinc-100 dark:bg-zinc-800" : ""}`}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full shrink-0 border border-zinc-300 dark:border-zinc-600"
+                        style={{ backgroundColor: c.hex }}
+                      />
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-4 flex justify-end gap-2">

@@ -10,7 +10,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app, var(--font-geist-sans));
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,7 +22,12 @@
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-app), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Use app font when .font-app is applied (layout sets this on body) */
+.font-app {
+  font-family: var(--font-app), ui-sans-serif, system-ui, sans-serif;
 }
 
 .rbc-calendar {
@@ -111,6 +116,30 @@ html.dark .rbc-timeslot-group {
   justify-content: center;
   padding: 0;
 }
+
+/* Week (and day) view header: remove blue today circle (we use react-big-calendar .rbc-*, not FullCalendar .fc-*) */
+.rbc-time-header .rbc-today .rbc-button-link,
+.rbc-time-header-content .rbc-today .rbc-button-link {
+  background-color: transparent !important;
+  color: inherit !important;
+  border-radius: 0;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* Optional: no visual highlight for today anywhere (uncomment to remove month-view today circle too)
+.rbc-today .rbc-button-link {
+  background: transparent !important;
+  color: inherit !important;
+  border-radius: 0;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+}
+*/
 
 /* Sidebar mini calendar: keep day numbers inside cell borders */
 .rdp-root {
