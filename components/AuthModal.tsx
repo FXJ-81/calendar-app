@@ -52,7 +52,7 @@ export default function AuthModal({
         aria-label="Close"
       />
 
-      <div className="absolute inset-0 flex items-center justify-center p-4">
+      <div className="absolute inset-0 flex items-start justify-center pt-[20vh] sm:items-center sm:pt-0 p-4">
         <div
           className="
             relative w-full max-w-md
