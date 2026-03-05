@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { parseWithAI } from "@/lib/parseNaturalEvent";
+import { isOverloaded, findFreeSlots, getMoodLevel } from "@/lib/calendarUtils";
+import { addTemplate } from "@/lib/templates";
 
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, differenceInMinutes, isSameDay } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
+import { motion, AnimatePresence } from "framer-motion";
+
+import OverloadBanner from "@/components/OverloadBanner";
+import FreeSlotModal from "@/components/FreeSlotModal";
+import FocusModeView from "@/components/FocusModeView";
 
 const locales = { "en-US": enUS };
 const DnDCalendar = withDragAndDrop<CalEvent>(Calendar);
@@ -58,17 +66,22 @@ const EVENT_COLORS = [
 
 const DEFAULT_COLOR = "blue";
 
-export default function CalendarApp({
-  date,
-  view,
-  onNavigate,
-  onView,
-}: {
+export type CalendarAppHandle = {
+  addEvent: (title: string, start: Date, end: Date, color?: string) => Promise<void>;
+};
+
+const CalendarAppInner = forwardRef<CalendarAppHandle, {
   date: Date;
   view: "day" | "week" | "month" | "agenda";
   onNavigate: (d: Date) => void;
   onView: (v: any) => void;
-}) {
+  focusMode?: boolean;
+  onCloseFocusMode?: () => void;
+  onMoodChange?: (level: 0 | 1 | 2) => void;
+}>(function CalendarAppInner(
+  { date, view, onNavigate, onView, focusMode, onCloseFocusMode, onMoodChange },
+  ref
+) {
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -81,6 +94,10 @@ export default function CalendarApp({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [nlInput, setNlInput] = useState("");
+  const [nlParsing, setNlParsing] = useState(false);
+  const [freeSlotOpen, setFreeSlotOpen] = useState(false);
+  const [freeSlotDuration, setFreeSlotDuration] = useState<30 | 60 | 90>(60);
 
   // Load session + subscribe to auth changes
   useEffect(() => {
@@ -148,7 +165,7 @@ export default function CalendarApp({
     fetchEvents();
   }, []);
 
-  async function addEvent(title: string, start: Date, end: Date, color?: string) {
+  const addEvent = async (title: string, start: Date, end: Date, color?: string) => {
     if (!userId) return;
 
     const { data, error } = await supabase
@@ -181,7 +198,9 @@ export default function CalendarApp({
         color: e.color ?? null,
       },
     ]);
-  }
+  };
+
+  useImperativeHandle(ref, () => ({ addEvent }), [userId]);
 
   async function deleteEvent(eventId: string) {
     if (!userId) return;
@@ -252,22 +271,54 @@ export default function CalendarApp({
     setShowModal(false);
     setColorPickerOpen(false);
     setEditingId(null);
+    setNlInput("");
   }
 
   const canUseCalendar = !!userId;
+  const overload = isOverloaded(events, date);
+  const freeSlots = findFreeSlots(events, date, freeSlotDuration);
+  const todayRef = new Date();
+  const todayEvents = events.filter(
+    (e) => isSameDay(e.start, todayRef) || isSameDay(e.end, todayRef)
+  );
+  const moodLevel = getMoodLevel(events, date);
+
+  useEffect(() => {
+    onMoodChange?.(moodLevel);
+  }, [moodLevel, onMoodChange]);
+
+  if (focusMode) {
+    return (
+      <FocusModeView
+        events={todayEvents}
+        onClose={onCloseFocusMode ?? (() => {})}
+      />
+    );
+  }
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-mood={moodLevel}>
       {authChecked && !canUseCalendar && (
         <div className="mb-3 text-2xl font-bold text-zinc-800 dark:text-zinc-300">
           Sign in to create/save events.
         </div>
       )}
 
-      <div className="mb-3 flex items-center justify-end">
+      {overload.overloaded && overload.reason && (
+        <OverloadBanner message={overload.reason} />
+      )}
+
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
-          className="px-4 py-3 sm:py-2 rounded bg-zinc-100 text-zinc-900 touch-manipulation min-h-[44px] dark:bg-zinc-800 dark:text-zinc-100"
+          className="px-3 py-2 rounded border border-zinc-200 dark:border-zinc-800 text-sm touch-manipulation"
+          onClick={() => setFreeSlotOpen(true)}
+        >
+          Find Free Time
+        </button>
+        <button
+          type="button"
+          className="px-4 py-3 sm:py-2 rounded text-white touch-manipulation min-h-[44px] bg-[var(--veya-accent)] hover:opacity-90"
           onClick={() => {
             const now = new Date();
             const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
@@ -283,14 +334,54 @@ export default function CalendarApp({
         </button>
       </div>
 
+      <AnimatePresence>
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl bg-white border border-zinc-200 p-4 pb-[env(safe-area-inset-bottom)] dark:bg-zinc-950 dark:border-zinc-800">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl bg-white border border-zinc-200 p-4 pb-[env(safe-area-inset-bottom)] dark:bg-zinc-950 dark:border-zinc-800"
+          >
             <div className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
               {editingId ? "Edit Event" : "New Event"}
             </div>
 
-            <label className="text-sm text-zinc-700 dark:text-zinc-300">Title</label>
+            <label className="text-sm text-zinc-700 dark:text-zinc-300">
+              Describe event (optional)
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                className="flex-1 px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-sm"
+                value={nlInput}
+                onChange={(e) => setNlInput(e.target.value)}
+                placeholder='e.g. dentist Friday at 2pm for 1 hour'
+              />
+              <button
+                type="button"
+                disabled={nlParsing || !nlInput.trim()}
+                onClick={async () => {
+                  setNlParsing(true);
+                  const parsed = await parseWithAI(nlInput.trim(), date);
+                  if (parsed) {
+                    setDraftTitle(parsed.title);
+                    setDraftStart(parsed.start);
+                    setDraftEnd(parsed.end);
+                  }
+                  setNlParsing(false);
+                }}
+                className="px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm shrink-0 disabled:opacity-50"
+              >
+                {nlParsing ? "…" : "Fill"}
+              </button>
+            </div>
+
+            <label className="mt-3 block text-sm text-zinc-700 dark:text-zinc-300">Title</label>
             <input
               className="mt-1 w-full px-3 py-3 sm:py-2 rounded bg-white text-zinc-900 border border-zinc-300 text-base dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
               value={draftTitle}
@@ -343,6 +434,22 @@ export default function CalendarApp({
             </div>
 
             <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {!editingId && draftTitle && draftStart && draftEnd && (
+                <button
+                  type="button"
+                  className="mr-auto px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-sm touch-manipulation"
+                  onClick={() => {
+                    addTemplate({
+                      title: draftTitle,
+                      durationMinutes: differenceInMinutes(draftEnd, draftStart),
+                      color: draftColor,
+                    });
+                    if (typeof window !== "undefined") window.dispatchEvent(new Event("veya-templates-updated"));
+                  }}
+                >
+                  Save as template
+                </button>
+              )}
               {editingId && (
                 <button
                   type="button"
@@ -371,9 +478,27 @@ export default function CalendarApp({
                 Save
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
+
+      <FreeSlotModal
+        open={freeSlotOpen}
+        onClose={() => setFreeSlotOpen(false)}
+        slots={freeSlots}
+        durationMinutes={freeSlotDuration}
+        onDurationChange={setFreeSlotDuration}
+        onSelectSlot={(start, end) => {
+          setFreeSlotOpen(false);
+          setEditingId(null);
+          setDraftTitle("");
+          setDraftStart(start);
+          setDraftEnd(end);
+          setDraftColor(DEFAULT_COLOR);
+          setShowModal(true);
+        }}
+      />
 
       <div className="min-h-[50vh] h-[calc(100vh-100px)] sm:h-[calc(100vh-70px)] w-full">
         <DnDCalendar
@@ -453,4 +578,6 @@ export default function CalendarApp({
       </div>
     </div>
   );
-}
+});
+
+export default CalendarAppInner;

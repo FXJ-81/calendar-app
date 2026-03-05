@@ -5,6 +5,18 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --veya-accent: #2563eb; /* calm blue default */
+}
+
+/* Mood-based accent: 0–2 events = blue, 3–5 = amber, 6+ = red/orange */
+main[data-mood="0"] {
+  --veya-accent: #2563eb;
+}
+main[data-mood="1"] {
+  --veya-accent: #d97706;
+}
+main[data-mood="2"] {
+  --veya-accent: #ea580c;
 }
 
 @theme inline {
@@ -34,8 +46,9 @@ body {
   height: 100% !important;
 }
 
+/* Hide the "now" line (green current-time indicator) to avoid glitches when creating events */
 .rbc-current-time-indicator {
-  height: 2px;
+  display: none !important;
 }
 
 html,

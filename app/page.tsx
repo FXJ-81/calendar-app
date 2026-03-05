@@ -1,14 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import CalendarApp from "@/components/CalendarApp";
+import type { CalendarAppHandle } from "@/components/CalendarApp";
 import TopBar from "@/components/TopBar";
 import SideBar from "@/components/SideBar";
+import type { EventTemplate } from "@/lib/templates";
 
 export default function Home() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<"day" | "week" | "month" | "agenda">("day");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [moodLevel, setMoodLevel] = useState<0 | 1 | 2>(0);
+  const calendarRef = useRef<CalendarAppHandle>(null);
+
+  const onAddTemplateToDay = useCallback((template: EventTemplate) => {
+    const start = new Date(selectedDate);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(start.getTime() + template.durationMinutes * 60 * 1000);
+    calendarRef.current?.addEvent(template.title, start, end, template.color);
+  }, [selectedDate]);
 
   // Close mobile sidebar when resizing to desktop
   useEffect(() => {
@@ -19,13 +31,17 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen flex bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <main
+      className="min-h-screen flex bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors"
+      data-mood={moodLevel}
+    >
       {/* Left sidebar — desktop */}
-      <aside className="hidden md:flex w-72 border-r border-zinc-200 dark:border-zinc-800 p-3">
+      <aside className="hidden md:flex w-72 border-r border-zinc-200 dark:border-zinc-800 p-3 flex-col">
         <SideBar
           selectedDate={selectedDate}
           onSelectDate={(d) => d && setSelectedDate(d)}
           onGoToday={() => setSelectedDate(new Date())}
+          onAddTemplateToDay={onAddTemplateToDay}
         />
       </aside>
 
@@ -56,6 +72,7 @@ export default function Home() {
                 setSidebarOpen(false);
               }}
               onGoToday={() => setSelectedDate(new Date())}
+              onAddTemplateToDay={onAddTemplateToDay}
             />
           </aside>
         </>
@@ -71,14 +88,20 @@ export default function Home() {
           onNext={() => setSelectedDate(addDays(selectedDate, view, +1))}
           onToday={() => setSelectedDate(new Date())}
           onOpenSidebar={() => setSidebarOpen(true)}
+          focusMode={focusMode}
+          onFocusModeToggle={() => setFocusMode((f) => !f)}
         />
 
         <div className="flex-1 p-2 sm:p-3 min-h-0">
           <CalendarApp
+            ref={calendarRef}
             date={selectedDate}
             view={view}
             onNavigate={setSelectedDate}
             onView={setView}
+            focusMode={focusMode}
+            onCloseFocusMode={() => setFocusMode(false)}
+            onMoodChange={setMoodLevel}
           />
         </div>
       </section>

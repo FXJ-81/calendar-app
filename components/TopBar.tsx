@@ -10,6 +10,8 @@ export default function TopBar({
   onNext,
   onToday,
   onOpenSidebar,
+  focusMode,
+  onFocusModeToggle,
 }: {
   selectedDate: Date;
   view: "day" | "week" | "month" | "agenda";
@@ -18,6 +20,8 @@ export default function TopBar({
   onNext: () => void;
   onToday: () => void;
   onOpenSidebar?: () => void;
+  focusMode?: boolean;
+  onFocusModeToggle?: () => void;
 }) {
   const dayNum = selectedDate.getDate();
   const weekday = selectedDate.toLocaleDateString(undefined, { weekday: "short" });
@@ -83,8 +87,21 @@ export default function TopBar({
           </button>
         </div>
 
-        {/* Right: view picker + settings */}
+        {/* Right: focus mode + view picker + settings */}
         <div className="flex items-center gap-2 shrink-0">
+          {onFocusModeToggle && (
+            <button
+              type="button"
+              onClick={onFocusModeToggle}
+              className={`px-3 py-2 rounded border touch-manipulation min-h-[44px] text-sm ${
+                focusMode
+                  ? "bg-zinc-800 text-white border-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100"
+                  : "border-zinc-200 dark:border-zinc-800"
+              }`}
+            >
+              Focus
+            </button>
+          )}
           <select
             className="px-3 py-2 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 touch-manipulation min-h-[44px] text-base"
             value={view}
